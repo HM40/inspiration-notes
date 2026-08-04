@@ -25,6 +25,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .tag-edit { background: #fef3c7; color: #92400e; }
 .tag-bv { background: #dbeafe; color: #2563eb; }
 .tag-link { background: #d1fae5; color: #059669; }
+.btn-copy { background: none; border: none; color: #059669; font-size: 14px; cursor: pointer; padding: 4px 8px; }
 .btn-edit { background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; padding: 4px 8px; }
 .btn-del { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
 .note-content { color: #374151; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
@@ -169,7 +170,10 @@ function render() {
     if (isEditing) html += '<span class="tag tag-edit">编辑中</span>';
     html += '</div>';
     html += '<div>';
-    if (!isEditing && hasContent(note)) html += '<button class="btn-edit" onclick="editNote(\'' + note.id + '\')">编辑</button>';
+    if (!isEditing && hasContent(note)) {
+      html += '<button class="btn-copy" onclick="copyNote(\'' + note.id + '\')">复制</button>';
+      html += '<button class="btn-edit" onclick="editNote(\'' + note.id + '\')">编辑</button>';
+    }
     html += '<button class="btn-del" onclick="deleteNote(\'' + note.id + '\')">删除</button>';
     html += '</div></div>';
 
@@ -283,6 +287,38 @@ function addNote() {
 function editNote(id) {
   editingId = id;
   render();
+}
+
+function copyNote(id) {
+  var note = notes.find(function(n) { return n.id === id; });
+  if (!note) return;
+  var text = note.text || '';
+  if (!text.trim()) { showToast('这条便签没有文案'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('已复制到剪贴板');
+    }).catch(function() {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('已复制到剪贴板');
+  } catch(e) {
+    showToast('复制失败，请手动复制');
+  }
+  document.body.removeChild(ta);
 }
 
 function deleteNote(id) {
