@@ -75,7 +75,7 @@ input:focus { border-color: #667eea; }
   <div class="header-actions">
     <button class="btn-sync btn-export" onclick="exportData()">📤 导出数据</button>
     <button class="btn-sync btn-import" onclick="document.getElementById('import-file').click()">📥 导入数据</button>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    <input type="file" id="import-file" accept=".json,.zip" style="display:none" onchange="importData(event)">
   </div>
 </div>
 
@@ -440,7 +440,7 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ===== 导出/导入 =====
+// ===== 工具 =====
 function showToast(msg) {
   var t = document.getElementById('toast');
   t.textContent = msg;
@@ -448,51 +448,199 @@ function showToast(msg) {
   setTimeout(function() { t.classList.remove('show'); }, 2000);
 }
 
-function exportData() {
-  if (!notes.length) { showToast('暂无数据可导出'); return; }
-  var json = JSON.stringify(notes, null, 2);
-  var blob = new Blob([json], { type: 'application/json' });
+function downloadBlob(blob, filename) {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = '灵感便笺_备份_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('导出成功');
 }
 
+// ===== JSZip 动态加载（多 CDN fallback） =====
+var jsZipLoaded = false;
+var jsZipLoading = false;
+var jsZipCallbacks = [];
+
+function loadJSZip(callback) {
+  if (jsZipLoaded) { callback(true); return; }
+  jsZipCallbacks.push(callback);
+  if (jsZipLoading) return;
+  jsZipLoading = true;
+  var urls = [
+    'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+    'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+  ];
+  var idx = 0;
+  function tryNext() {
+    if (idx >= urls.length) {
+      jsZipLoading = false;
+      jsZipCallbacks.forEach(function(cb) { cb(false); });
+      jsZipCallbacks = [];
+      return;
+    }
+    var script = document.createElement('script');
+    script.src = urls[idx];
+    script.onload = function() {
+      jsZipLoaded = true;
+      jsZipLoading = false;
+      jsZipCallbacks.forEach(function(cb) { cb(true); });
+      jsZipCallbacks = [];
+    };
+    script.onerror = function() { idx++; tryNext(); };
+    document.head.appendChild(script);
+  }
+  tryNext();
+}
+
+// ===== 导出 =====
+function exportData() {
+  if (!notes.length) { showToast('暂无数据可导出'); return; }
+  showToast('正在准备导出...');
+  loadJSZip(function(ok) {
+    if (ok) { exportAsZip(); } else { exportAsJson(); }
+  });
+}
+
+function exportAsJson() {
+  var json = JSON.stringify(notes, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  downloadBlob(blob, '灵感便笺_备份_' + new Date().toISOString().slice(0, 10) + '.json');
+  showToast('已导出为 JSON');
+}
+
+function exportAsZip() {
+  try {
+    var zip = new JSZip();
+    var exportNotes = [];
+    var imageCount = 0;
+    for (var i = 0; i < notes.length; i++) {
+      var note = Object.assign({}, notes[i]);
+      note.images = [];
+      var imgs = notes[i].images || [];
+      for (var j = 0; j < imgs.length; j++) {
+        var img = imgs[j];
+        var filename = note.id + '_' + img.id + '.jpg';
+        note.images.push({ id: img.id, src: 'images/' + filename, caption: img.caption || '' });
+        var b64 = img.src;
+        var commaIdx = b64.indexOf(',');
+        if (commaIdx > -1) b64 = b64.substring(commaIdx + 1);
+        try { zip.file('images/' + filename, b64, { base64: true }); imageCount++; } catch(e) {}
+      }
+      exportNotes.push(note);
+    }
+    zip.file('data.json', JSON.stringify({ version: 2, notes: exportNotes }, null, 2));
+    zip.generateAsync({ type: 'blob' }).then(function(blob) {
+      downloadBlob(blob, '灵感便笺_备份_' + new Date().toISOString().slice(0, 10) + '.zip');
+      showToast('已导出 ZIP（含 ' + imageCount + ' 张图片）');
+    }).catch(function() {
+      exportAsJson();
+      showToast('ZIP 失败，已降级为 JSON');
+    });
+  } catch(e) {
+    exportAsJson();
+  }
+}
+
+// ===== 导入（支持 zip + json） =====
 function importData(e) {
   var file = e.target.files[0];
   if (!file) return;
+  if (file.name.endsWith('.zip')) {
+    loadJSZip(function(ok) {
+      if (ok) { importFromZip(file, e); }
+      else { alert('无法加载解压组件，请重试'); e.target.value = ''; }
+    });
+  } else {
+    importFromJson(file, e);
+  }
+}
+
+function importFromJson(file, e) {
   var reader = new FileReader();
   reader.onload = function(ev) {
     try {
       var imported = JSON.parse(ev.target.result);
-      if (!Array.isArray(imported)) { alert('文件格式错误：不是有效的便笺数据'); return; }
-      var valid = imported.filter(function(n) { return n && typeof n === 'object'; });
-      if (!valid.length) { alert('文件内容为空或无效'); return; }
-      if (notes.length > 0) {
-        if (!confirm('导入将合并到现有数据中（' + notes.length + ' 条），继续吗？')) { e.target.value = ''; return; }
-      }
-      // 合并：为导入的数据生成新 ID 避免冲突
-      valid.forEach(function(n) {
-        n.id = genId();
-        if (n.images) {
-          n.images.forEach(function(img) { img.id = genId(); });
-        }
-        notes.push(n);
-      });
-      saveNotes();
-      render();
-      showToast('导入成功，共 ' + valid.length + ' 条');
+      if (!Array.isArray(imported)) { alert('文件格式错误'); e.target.value = ''; return; }
+      mergeImported(imported);
     } catch(err) {
-      alert('文件解析失败，请确认是 JSON 文件');
+      alert('文件解析失败，请确认是有效的 JSON 文件');
     }
     e.target.value = '';
   };
   reader.readAsText(file);
+}
+
+function importFromZip(file, e) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    JSZip.loadAsync(ev.target.result).then(function(zip) {
+      return zip.file('data.json').async('string').then(function(jsonStr) {
+        var data = JSON.parse(jsonStr);
+        var importNotes = data.notes || data;
+        if (!Array.isArray(importNotes)) { alert('文件数据格式错误'); return; }
+        var imagePromises = [];
+        for (var i = 0; i < importNotes.length; i++) {
+          var note = importNotes[i];
+          if (note.images) {
+            for (var j = 0; j < note.images.length; j++) {
+              var img = note.images[j];
+              if (img.src && img.src.indexOf('images/') === 0) {
+                (function(imageObj) {
+                  imagePromises.push(
+                    zip.file(imageObj.src).async('base64').then(function(b64) {
+                      return { path: imageObj.src, base64: b64 };
+                    }).catch(function() { return null; })
+                  );
+                })(img);
+              }
+            }
+          }
+        }
+        return Promise.all(imagePromises).then(function(imageResults) {
+          var imageMap = {};
+          imageResults.forEach(function(r) { if (r) imageMap[r.path] = r.base64; });
+          for (var i = 0; i < importNotes.length; i++) {
+            var note = importNotes[i];
+            if (note.images) {
+              for (var j = 0; j < note.images.length; j++) {
+                var img = note.images[j];
+                if (img.src && imageMap[img.src]) {
+                  var ext = img.src.split('.').pop().toLowerCase();
+                  var mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+                  img.src = 'data:' + mime + ';base64,' + imageMap[img.src];
+                }
+              }
+            }
+          }
+          mergeImported(importNotes);
+        });
+      });
+    }).catch(function(err) {
+      alert('ZIP 文件解析失败：' + err.message);
+    });
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function mergeImported(imported) {
+  var valid = imported.filter(function(n) { return n && typeof n === 'object'; });
+  if (!valid.length) { alert('文件内容为空或无效'); return; }
+  if (notes.length > 0) {
+    if (!confirm('导入将合并到现有数据中（' + notes.length + ' 条），继续吗？')) return;
+  }
+  valid.forEach(function(n) {
+    n.id = genId();
+    if (n.images) { n.images.forEach(function(img) { img.id = genId(); }); }
+    notes.push(n);
+  });
+  saveNotes();
+  render();
+  showToast('导入成功，共 ' + valid.length + ' 条');
 }
 
 // ===== 初始化 =====
