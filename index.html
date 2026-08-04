@@ -220,13 +220,13 @@ function renderEditMode(note) {
   // BV号
   html += '<div class="section">';
   html += '<span class="label">📺 B站BV号</span>';
-  html += '<input type="text" id="bv-' + note.id + '" value="' + escapeHtml(note.bvNumber || '') + '" placeholder="如 BV1xx411c7mD">';
+  html += '<input type="text" id="bv-' + note.id + '" value="' + escapeHtml(note.bvNumber || '') + '" placeholder="如 BV1xx411c7mD" oninput="syncField(\'' + note.id + '\',\'bvNumber\',this.value)">';
   html += '</div>';
 
   // 网页链接
   html += '<div class="section">';
   html += '<span class="label">🔗 网页链接</span>';
-  html += '<input type="url" id="link-' + note.id + '" value="' + escapeHtml(note.webLink || '') + '" placeholder="如 https://example.com">';
+  html += '<input type="url" id="link-' + note.id + '" value="' + escapeHtml(note.webLink || '') + '" placeholder="如 https://example.com" oninput="syncField(\'' + note.id + '\',\'webLink\',this.value)">';
   html += '</div>';
 
   // 保存按钮
@@ -338,14 +338,20 @@ function saveNote(id) {
   var bvEl = document.getElementById('bv-' + id);
   var linkEl = document.getElementById('link-' + id);
 
-  note.text = textEl ? textEl.value.trim() : '';
-  note.bvNumber = bvEl ? bvEl.value.trim() : '';
-  note.webLink = linkEl ? linkEl.value.trim() : '';
+  // 优先从 textarea 获取值，如果找不到则保留已有值（已在输入时实时同步）
+  if (textEl) note.text = textEl.value.trim();
+  if (bvEl) note.bvNumber = bvEl.value.trim();
+  if (linkEl) note.webLink = linkEl.value.trim();
   note.updatedAt = new Date().toISOString();
 
   editingId = null;
   saveNotes();
   render();
+}
+
+function syncField(noteId, field, value) {
+  var note = notes.find(function(n) { return n.id === noteId; });
+  if (note) note[field] = value;
 }
 
 function updateCharCounter(id) {
@@ -355,6 +361,9 @@ function updateCharCounter(id) {
   var len = textEl.value.length;
   counterEl.textContent = len + '/2000';
   counterEl.className = len > 1950 ? 'char-counter danger' : len > 1800 ? 'char-counter warn' : 'char-counter';
+  // 实时同步文字到 note 对象
+  var note = notes.find(function(n) { return n.id === id; });
+  if (note) note.text = textEl.value;
 }
 
 function handleFileSelect(e) {
