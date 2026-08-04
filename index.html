@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>灵感便笺</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f4f8; min-height: 100vh; padding-bottom: 100px; }
+.header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #e5e7eb; padding: 16px; text-align: center; }
+.header h1 { font-size: 22px; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header p { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.container { max-width: 500px; margin: 0 auto; padding: 16px; }
+.empty { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty-text { color: #9ca3af; font-size: 14px; }
+.card { border-radius: 16px; padding: 16px; margin-bottom: 16px; transition: all 0.3s; }
+.card-view { background: #fff; border: 1px solid #e5e7eb; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.card-edit { background: #fffef5; border: 2px solid #ffc107; box-shadow: 0 4px 16px rgba(255,193,7,0.15); }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-header-left { display: flex; align-items: center; gap: 8px; }
+.seq { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #818cf8, #a78bfa); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.date { font-size: 12px; color: #9ca3af; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-edit { background: #fef3c7; color: #92400e; }
+.tag-bv { background: #dbeafe; color: #2563eb; }
+.tag-link { background: #d1fae5; color: #059669; }
+.btn-edit { background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; padding: 4px 8px; }
+.btn-del { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.note-content { color: #374151; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.section { margin-top: 12px; }
+.label { font-size: 13px; font-weight: 500; color: #6b7280; margin-bottom: 6px; display: block; }
+textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: vertical; min-height: 80px; outline: none; font-family: inherit; }
+textarea:focus { border-color: #667eea; }
+input[type="text"], input[type="url"] { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
+input:focus { border-color: #667eea; }
+.char-counter { font-size: 12px; color: #9ca3af; text-align: right; margin-top: 4px; }
+.char-counter.warn { color: #f59e0b; }
+.char-counter.danger { color: #ef4444; }
+.img-list { display: flex; flex-wrap: wrap; gap: 12px; }
+.img-item { position: relative; }
+.img-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e5e7eb; }
+.img-del { position: absolute; top: -4px; right: -4px; width: 20px; height: 20px; background: #ef4444; color: #fff; border-radius: 50%; font-size: 12px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.img-caption { margin-top: 4px; width: 80px; font-size: 11px; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; }
+.img-caption-view { margin-top: 4px; font-size: 11px; color: #6b7280; width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.img-add { width: 80px; height: 80px; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 28px; color: #9ca3af; }
+.img-add:active { border-color: #667eea; background: #f5f3ff; }
+.link-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.link-row a { font-size: 14px; text-decoration: none; word-break: break-all; }
+.link-bv a { color: #2563eb; }
+.link-web a { color: #059669; }
+.link-row a:hover { text-decoration: underline; }
+.btn-save { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+.btn-save:active { opacity: 0.8; }
+.fab { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 32px; border: none; box-shadow: 0 4px 16px rgba(102,126,234,0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100; }
+.fab:disabled { opacity: 0.4; }
+.lightbox { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.lightbox img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+.no-content { color: #9ca3af; font-size: 14px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>✨ 灵感便笺</h1>
+  <p id="counter">0/10 个灵感</p>
+</div>
+
+<div class="container" id="app"></div>
+
+<button class="fab" id="fab" onclick="addNote()">+</button>
+
+<div id="lightbox" style="display:none" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+// ===== 数据管理 =====
+var STORAGE_KEY = 'inspiration_notes_v2';
+var notes = [];
+var editingId = null;
+
+function loadNotes() {
+  try {
+    var data = localStorage.getItem(STORAGE_KEY);
+    notes = data ? JSON.parse(data) : [];
+  } catch(e) { notes = []; }
+}
+
+function saveNotes() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    return true;
+  } catch(e) {
+    alert('存储空间不足啦，试试删一些图片或旧便笺~');
+    return false;
+  }
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 8);
+}
+
+// ===== 图片压缩 =====
+function compressImage(file) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > 800) { h = Math.round(800 / w * h); w = 800; }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== 渲染 =====
+function render() {
+  var app = document.getElementById('app');
+  var counter = document.getElementById('counter');
+  var fab = document.getElementById('fab');
+
+  counter.textContent = notes.length + ' 个灵感';
+  fab.disabled = false;
+
+  if (notes.length === 0) {
+    app.innerHTML = '<div class="empty"><div class="empty-icon">💡</div><div class="empty-text">还没有灵感，点击下方 + 开始记录</div></div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < notes.length; i++) {
+    var note = notes[i];
+    var isEditing = editingId === note.id;
+    var cls = isEditing ? 'card card-edit' : 'card card-view';
+    var dateStr = note.createdAt ? new Date(note.createdAt).toLocaleDateString('zh-CN') : '新便笺';
+
+    html += '<div class="' + cls + '" data-id="' + note.id + '">';
+    html += '<div class="card-header">';
+    html += '<div class="card-header-left">';
+    html += '<div class="seq">' + (i + 1) + '</div>';
+    html += '<span class="date">' + dateStr + '</span>';
+    if (isEditing) html += '<span class="tag tag-edit">编辑中</span>';
+    html += '</div>';
+    html += '<div>';
+    if (!isEditing && hasContent(note)) html += '<button class="btn-edit" onclick="editNote(\'' + note.id + '\')">编辑</button>';
+    html += '<button class="btn-del" onclick="deleteNote(\'' + note.id + '\')">删除</button>';
+    html += '</div></div>';
+
+    if (isEditing) {
+      html += renderEditMode(note);
+    } else {
+      html += renderViewMode(note);
+    }
+
+    html += '</div>';
+  }
+
+  app.innerHTML = html;
+
+  // 绑定图片上传事件
+  var fileInputs = document.querySelectorAll('.file-input');
+  for (var j = 0; j < fileInputs.length; j++) {
+    fileInputs[j].addEventListener('change', handleFileSelect);
+  }
+}
+
+function renderEditMode(note) {
+  var html = '';
+
+  // 文字描述
+  html += '<div class="section">';
+  html += '<textarea id="text-' + note.id + '" placeholder="写下你的灵感..." maxlength="2000" oninput="updateCharCounter(\'' + note.id + '\')">' + escapeHtml(note.text || '') + '</textarea>';
+  var len = (note.text || '').length;
+  var counterCls = len > 1950 ? 'char-counter danger' : len > 1800 ? 'char-counter warn' : 'char-counter';
+  html += '<div class="' + counterCls + '" id="counter-' + note.id + '">' + len + '/2000</div>';
+  html += '</div>';
+
+  // 图片
+  html += '<div class="section">';
+  html += '<span class="label">📷 图片</span>';
+  html += '<div class="img-list">';
+  var images = note.images || [];
+  for (var i = 0; i < images.length; i++) {
+    var img = images[i];
+    html += '<div class="img-item">';
+    html += '<img src="' + img.src + '" class="img-thumb" onclick="showLightbox(\'' + img.id + '\')">';
+    html += '<button class="img-del" onclick="deleteImage(\'' + note.id + '\',\'' + img.id + '\')">×</button>';
+    html += '<input class="img-caption" type="text" value="' + escapeHtml(img.caption || '') + '" placeholder="说明(20字)" maxlength="20" onchange="updateCaption(\'' + note.id + '\',\'' + img.id + '\',this.value)">';
+    html += '</div>';
+  }
+  html += '<div class="img-add" onclick="this.nextElementSibling.click()">+</div>';
+  html += '<input type="file" accept="image/*" multiple class="file-input" data-note-id="' + note.id + '" style="display:none">';
+  html += '</div></div>';
+
+  // BV号
+  html += '<div class="section">';
+  html += '<span class="label">📺 B站BV号</span>';
+  html += '<input type="text" id="bv-' + note.id + '" value="' + escapeHtml(note.bvNumber || '') + '" placeholder="如 BV1xx411c7mD">';
+  html += '</div>';
+
+  // 网页链接
+  html += '<div class="section">';
+  html += '<span class="label">🔗 网页链接</span>';
+  html += '<input type="url" id="link-' + note.id + '" value="' + escapeHtml(note.webLink || '') + '" placeholder="如 https://example.com">';
+  html += '</div>';
+
+  // 保存按钮
+  html += '<button class="btn-save" onclick="saveNote(\'' + note.id + '\')">💾 保存</button>';
+
+  return html;
+}
+
+function renderViewMode(note) {
+  var html = '';
+  var hasText = note.text && note.text.trim();
+  var hasImages = note.images && note.images.length > 0;
+  var hasBv = note.bvNumber && note.bvNumber.trim();
+  var hasLink = note.webLink && note.webLink.trim();
+
+  if (hasText) {
+    html += '<div class="note-content">' + escapeHtml(note.text) + '</div>';
+  }
+
+  if (hasImages) {
+    html += '<div class="section"><div class="img-list">';
+    for (var i = 0; i < note.images.length; i++) {
+      var img = note.images[i];
+      html += '<div class="img-item">';
+      html += '<img src="' + img.src + '" class="img-thumb" onclick="showLightbox(\'' + img.id + '\')">';
+      if (img.caption) html += '<div class="img-caption-view">' + escapeHtml(img.caption) + '</div>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  if (hasBv) {
+    var bvUrl = 'https://www.bilibili.com/video/' + note.bvNumber.trim();
+    html += '<div class="link-row link-bv"><span class="tag tag-bv">B站</span><a href="' + bvUrl + '" target="_blank">' + escapeHtml(note.bvNumber.trim()) + '</a></div>';
+  }
+
+  if (hasLink) {
+    var linkUrl = note.webLink.trim();
+    var displayUrl = linkUrl.length > 50 ? linkUrl.substr(0, 50) + '...' : linkUrl;
+    html += '<div class="link-row link-web"><span class="tag tag-link">链接</span><a href="' + linkUrl + '" target="_blank">' + escapeHtml(displayUrl) + '</a></div>';
+  }
+
+  if (!hasText && !hasImages && !hasBv && !hasLink) {
+    html += '<div class="no-content">暂无内容</div>';
+  }
+
+  return html;
+}
+
+// ===== 操作函数 =====
+function addNote() {
+  var newNote = { id: genId(), text: '', images: [], bvNumber: '', webLink: '', createdAt: new Date().toISOString() };
+  notes.push(newNote);
+  editingId = newNote.id;
+  render();
+}
+
+function editNote(id) {
+  editingId = id;
+  render();
+}
+
+function deleteNote(id) {
+  if (confirm('确定删除这个灵感便笺吗？')) {
+    notes = notes.filter(function(n) { return n.id !== id; });
+    if (editingId === id) editingId = null;
+    saveNotes();
+    render();
+  }
+}
+
+function saveNote(id) {
+  var note = notes.find(function(n) { return n.id === id; });
+  if (!note) return;
+
+  var textEl = document.getElementById('text-' + id);
+  var bvEl = document.getElementById('bv-' + id);
+  var linkEl = document.getElementById('link-' + id);
+
+  note.text = textEl ? textEl.value.trim() : '';
+  note.bvNumber = bvEl ? bvEl.value.trim() : '';
+  note.webLink = linkEl ? linkEl.value.trim() : '';
+  note.updatedAt = new Date().toISOString();
+
+  editingId = null;
+  saveNotes();
+  render();
+}
+
+function updateCharCounter(id) {
+  var textEl = document.getElementById('text-' + id);
+  var counterEl = document.getElementById('counter-' + id);
+  if (!textEl || !counterEl) return;
+  var len = textEl.value.length;
+  counterEl.textContent = len + '/2000';
+  counterEl.className = len > 1950 ? 'char-counter danger' : len > 1800 ? 'char-counter warn' : 'char-counter';
+}
+
+function handleFileSelect(e) {
+  var noteId = e.target.getAttribute('data-note-id');
+  var note = notes.find(function(n) { return n.id === noteId; });
+  if (!note) return;
+
+  var files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  Promise.all(files.map(compressImage)).then(function(results) {
+    for (var i = 0; i < results.length; i++) {
+      note.images.push({ id: genId(), src: results[i], caption: '' });
+    }
+    saveNotes();
+    render();
+  });
+}
+
+function deleteImage(noteId, imgId) {
+  var note = notes.find(function(n) { return n.id === noteId; });
+  if (!note) return;
+  note.images = note.images.filter(function(img) { return img.id !== imgId; });
+  saveNotes();
+  render();
+}
+
+function updateCaption(noteId, imgId, value) {
+  var note = notes.find(function(n) { return n.id === noteId; });
+  if (!note) return;
+  var img = note.images.find(function(i) { return i.id === imgId; });
+  if (img) img.caption = value.slice(0, 20);
+  saveNotes();
+}
+
+function showLightbox(imgId) {
+  var img = findImageById(imgId);
+  if (!img) return;
+  var lb = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lightbox-img');
+  lbImg.src = img.src;
+  lb.style.display = 'flex';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+}
+
+function findImageById(id) {
+  for (var i = 0; i < notes.length; i++) {
+    var imgs = notes[i].images || [];
+    for (var j = 0; j < imgs.length; j++) {
+      if (imgs[j].id === id) return imgs[j];
+    }
+  }
+  return null;
+}
+
+function hasContent(note) {
+  return (note.text && note.text.trim()) || (note.images && note.images.length > 0) || (note.bvNumber && note.bvNumber.trim()) || (note.webLink && note.webLink.trim());
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ===== 初始化 =====
+loadNotes();
+render();
+</script>
+</body>
+</html>
